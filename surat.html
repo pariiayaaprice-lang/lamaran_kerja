@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lamaran Fachri Alfian - PT. PAMA</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e8ebef; color: #1b2430; font: 15px/1.5 system-ui, Arial, sans-serif; }
+  .app { display: grid; grid-template-columns: 360px 1fr; min-height: 100vh; }
+  .side { background: #fff; border-right: 1px solid #cfd6de; padding: 16px; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 18px 0 4px; }
+  .sub { color: #5d6b7a; font-size: 13px; margin: 0 0 8px; }
+  label { display: block; font-size: 12px; color: #5d6b7a; margin: 8px 0 2px; }
+  input { width: 100%; font: inherit; padding: 7px 9px; border: 1px solid #cfd6de; border-radius: 6px; }
+  input:focus, button:focus-visible { outline: 2px solid #b0482f; outline-offset: 1px; }
+  .dua { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button { font: inherit; font-weight: 600; padding: 8px 12px; border: 1px solid #cfd6de; background: #fff; border-radius: 6px; cursor: pointer; }
+  button.utama { background: #b0482f; border-color: #b0482f; color: #fff; }
+  .aksi { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  ul { list-style: none; margin: 6px 0 0; padding: 0; }
+  li { display: flex; gap: 6px; margin-bottom: 4px; }
+  li .pilih { flex: 1; text-align: left; font-weight: 500; }
+  li .hapus { padding: 8px 10px; }
+  .kosong-info { color: #5d6b7a; font-size: 13px; }
+
+  .stage { padding: 20px 12px; overflow: auto; }
+  .kertas { width: 210mm; max-width: 100%; margin: 0 auto; }
+  .surat { background: #fff; min-height: 297mm; padding: 22mm; margin-bottom: 14px;
+           font: 12pt/1.5 "Times New Roman", Times, serif; color: #000; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+  .surat p { margin: 0 0 12pt; text-align: justify; }
+  .surat .kanan { text-align: right; }
+  .surat .kiri { text-align: left; }
+  .surat .ttd { height: 56pt; }
+  .ph { background: #fff2b8; }
+
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; }
+    .side { position: static; max-height: none; }
+    .surat { padding: 12mm; min-height: 0; }
+  }
+  @media print {
+    @page { size: A4; margin: 0; }
+    body, .stage { background: #fff; padding: 0; }
+    .side { display: none; }
+    .app { display: block; }
+    .surat { box-shadow: none; margin: 0; padding: 22mm; min-height: 297mm; page-break-after: always; }
+    .surat:last-child { page-break-after: auto; }
+    .ph { background: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <h1>Lamaran Fachri Alfian</h1>
+    <p class="sub">Isi data diri sekali, lalu tinggal ganti perusahaan.</p>
+
+    <h2>Data diri</h2>
+    <label for="nama">Nama lengkap</label><input id="nama" value="Fachri Alfian">
+    <label for="email">Email</label><input id="email" type="email" value="pariiayaaprice@gmail.com">
+    <div class="dua">
+      <div><label for="hp">No. HP</label><input id="hp" type="tel" value="085763089939"></div>
+      <div><label for="kota">Kota</label><input id="kota" placeholder="Jakarta"></div>
+    </div>
+    <label for="pendidikan">Pendidikan terakhir</label><input id="pendidikan" placeholder="SMK Teknik Komputer Jaringan">
+    <label for="keahlian">Keahlian (pisahkan koma)</label><input id="keahlian" placeholder="Microsoft Office, komunikasi, kerja tim">
+
+    <h2>Lamaran saat ini</h2>
+    <label for="perusahaan">Nama perusahaan</label><input id="perusahaan" value="PT. PAMA">
+    <label for="posisi">Posisi dilamar</label><input id="posisi" placeholder="Isi posisi yang dilamar">
+    <label for="sumber">Sumber lowongan (opsional)</label><input id="sumber" placeholder="Jobstreet">
+
+    <div class="aksi">
+      <button class="utama" id="cetak">Cetak surat ini</button>
+      <button id="tambah">Tambah ke daftar</button>
+    </div>
+
+    <h2>Daftar lamaran</h2>
+    <ul id="daftar"></ul>
+    <div class="aksi">
+      <button id="cetakSemua">Cetak semua</button>
+      <button id="kosongkan">Kosongkan daftar</button>
+    </div>
+  </aside>
+
+  <main class="stage"><div class="kertas" id="kertas"></div></main>
+</div>
+
+<script>
+  var KEY = "lamaran-fachri-pama-v2";
+  var PROFIL = ["nama", "email", "hp", "kota", "pendidikan", "keahlian"];
+  var TARGET = ["perusahaan", "posisi", "sumber"];
+  var daftar = [];
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function ph(teks, label) {
+    teks = (teks || "").trim();
+    return teks ? esc(teks) : '<span class="ph">[' + label + ']</span>';
+  }
+  function tanggal() {
+    return new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  }
+  function gabung(teks) {
+    var a = teks.split(",").map(function (s) { return s.trim(); }).filter(Boolean).map(esc);
+    if (!a.length) return "";
+    if (a.length === 1) return a[0];
+    return a.slice(0, -1).join(", ") + " dan " + a[a.length - 1];
+  }
+
+  function suratHTML(t) {
+    var kota = $("kota").value.trim();
+    var sumber = (t.sumber || "").trim();
+    var ahli = gabung($("keahlian").value);
+    var p = ph(t.perusahaan, "perusahaan");
+    var nama = ph($("nama").value, "nama");
+
+    var buka = sumber
+      ? "Berdasarkan informasi lowongan yang saya peroleh dari " + esc(sumber) + ", "
+      : "";
+    var h = '<div class="surat">';
+    h += '<p class="kanan">' + (kota ? esc(kota) + ", " : "") + tanggal() + "</p>";
+    h += '<p class="kiri">Hal: <b>Lamaran Pekerjaan</b><br>Lampiran: 1 (satu) berkas</p>';
+    h += '<p class="kiri">Yth. Bapak/Ibu HRD<br>' + p + "<br>di Tempat</p>";
+    h += "<p>Dengan hormat,</p>";
+    h += "<p>" + buka + (buka ? "saya" : "Saya") + ", " + nama +
+         ", bermaksud mengajukan lamaran kerja pada posisi <b>" + ph(t.posisi, "Manager") + "</b> di " + p + ".";
+    if ($("pendidikan").value.trim()) h += " Saya lulusan " + esc($("pendidikan").value.trim()) + ".";
+    if (ahli) h += " Saya memiliki kemampuan di bidang " + ahli + ".";
+    h += "</p>";
+    h += "<p>Saya memiliki semangat belajar yang tinggi, mampu bekerja sama dalam tim, dan siap beradaptasi dengan cepat. " +
+         "Bersama surat ini saya lampirkan  beserta berkas pendukung lainnya sebagai bahan pertimbangan.</p>";
+    h += "<p>Demikian surat ini saya buat dengan sebenarnya. Atas perhatian dan kesempatan yang Bapak/Ibu berikan, saya ucapkan terima kasih.</p>";
+    h += '<p class="kiri">Hormat saya,</p><div class="ttd"></div>';
+    h += '<p class="kiri"><b>' + nama + "</b><br>" + ph($("hp").value, "no. HP") + "<br>" + ph($("email").value, "email") + "</p>";
+    return h + "</div>";
+  }
+
+  function targetSekarang() {
+    return { perusahaan: $("perusahaan").value, posisi: $("posisi").value, sumber: $("sumber").value };
+  }
+  function render() { $("kertas").innerHTML = suratHTML(targetSekarang()); }
+
+  function renderDaftar() {
+    var ul = $("daftar");
+    ul.innerHTML = "";
+    if (!daftar.length) {
+      ul.innerHTML = '<li class="kosong-info">Belum ada. Isi perusahaan dan posisi, lalu klik "Tambah ke daftar".</li>';
+      return;
+    }
+    daftar.forEach(function (t, i) {
+      var li = document.createElement("li");
+      var b1 = document.createElement("button");
+      b1.className = "pilih";
+      b1.textContent = (t.perusahaan || "?") + " - " + (t.posisi || "?");
+      b1.onclick = function () { TARGET.forEach(function (k) { $(k).value = t[k] || ""; }); render(); };
+      var b2 = document.createElement("button");
+      b2.className = "hapus";
+      b2.textContent = "Hapus";
+      b2.setAttribute("aria-label", "Hapus " + (t.perusahaan || "lamaran"));
+      b2.onclick = function () { daftar.splice(i, 1); simpan(); renderDaftar(); };
+      li.appendChild(b1); li.appendChild(b2);
+      ul.appendChild(li);
+    });
+  }
+
+  function simpan() {
+    try {
+      var d = { profil: {}, daftar: daftar };
+      PROFIL.forEach(function (k) { d.profil[k] = $(k).value; });
+      localStorage.setItem(KEY, JSON.stringify(d));
+    } catch (e) {}
+  }
+  function muat() {
+    try {
+      var d = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (!d) return;
+      PROFIL.forEach(function (k) { if (d.profil && d.profil[k]) $(k).value = d.profil[k]; });
+      daftar = d.daftar || [];
+    } catch (e) {}
+  }
+
+  $("tambah").onclick = function () {
+    var t = targetSekarang();
+    if (!t.perusahaan.trim() || !t.posisi.trim()) { alert("Isi nama perusahaan dan posisi dulu."); return; }
+    daftar.push(t);
+    simpan(); renderDaftar();
+  };
+  $("kosongkan").onclick = function () {
+    if (daftar.length && confirm("Hapus semua daftar lamaran?")) { daftar = []; simpan(); renderDaftar(); }
+  };
+  $("cetak").onclick = function () { render(); window.print(); };
+  $("cetakSemua").onclick = function () {
+    if (!daftar.length) { alert("Daftar masih kosong."); return; }
+    $("kertas").innerHTML = daftar.map(suratHTML).join("");
+    window.print();
+    render();
+  };
+  window.addEventListener("afterprint", render);
+
+  document.querySelector(".side").addEventListener("input", function () { render(); simpan(); });
+
+  muat(); render(); renderDaftar();
+</script>
+</body>
+</html>
